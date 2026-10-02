@@ -1,0 +1,10 @@
+{
+  "name": "Sanyaja ERP",
+  "short_name": "SanyajaERP",
+  "description": "Sanyaja Professional Tailors ERP",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F6F3EC",
+  "theme_color": "#B8863B",
+  "icons": []
+}

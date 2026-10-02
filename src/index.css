@@ -1,0 +1,192 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background: #F6F3EC;
+  color: #1B2430;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.theme-dark body {
+  background: #0f172a;
+  color: #e5e7eb;
+}
+
+.theme-dark .bg-paper,
+.theme-dark .bg-paper\/90,
+.theme-dark .bg-paper\/50,
+.theme-dark .bg-paper\/40 {
+  background-color: #111827 !important;
+}
+
+.theme-dark .bg-surface,
+.theme-dark .bg-white,
+.theme-dark .bg-white\/60 {
+  background-color: #1f2937 !important;
+}
+
+.theme-dark .text-ink {
+  color: #f3f4f6 !important;
+}
+
+.theme-dark .text-muted {
+  color: #cbd5e1 !important;
+}
+
+.theme-dark .border-line,
+.theme-dark .border-line\/60,
+.theme-dark .border-dashed.border-line {
+  border-color: #334155 !important;
+}
+
+.theme-dark .hover\:bg-ink\/5:hover,
+.theme-dark .hover\:bg-paper:hover,
+.theme-dark .hover\:bg-paper\/50:hover,
+.theme-dark .hover\:bg-line\/50:hover,
+.theme-dark .hover\:bg-line\/60:hover {
+  background-color: #334155 !important;
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: 'Fraunces', serif;
+}
+
+::selection {
+  background: rgba(184,134,59,0.25);
+}
+
+/* Ticket / invoice card with a perforated brass edge — signature motif */
+.ticket-edge {
+  position: relative;
+}
+.ticket-edge::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: repeating-linear-gradient(90deg, #B8863B 0 8px, transparent 8px 14px);
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #D9B27C;
+  border-radius: 999px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-in {
+  animation: fadeInUp 0.25s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-in { animation: none; }
+}
+
+/* Invoice printing — 80mm thermal receipt */
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 0; /* Zero page margin — element handles its own padding */
+  }
+
+  html,
+  body {
+    width: 80mm !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    overflow: visible !important;
+  }
+
+  /* Hide everything except the invoice */
+  body * {
+    visibility: hidden;
+  }
+
+  .invoice-printable,
+  .invoice-printable * {
+    visibility: visible;
+  }
+
+  .invoice-printable {
+    position: static !important;
+    display: block !important;
+    width: 80mm !important;
+    max-width: 80mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    overflow: visible !important;
+  }
+
+  /* Flatten all modal / overlay ancestor containers so they don't clip or scroll */
+  html, body, #root,
+  .fixed:has(.invoice-printable),
+  .absolute:has(.invoice-printable),
+  .relative:has(.invoice-printable),
+  .overflow-hidden:has(.invoice-printable),
+  .overflow-y-auto:has(.invoice-printable),
+  [class*="max-h-"]:has(.invoice-printable),
+  [class*="max-w-"]:has(.invoice-printable) {
+    position: static !important;
+    overflow: visible !important;
+    max-height: none !important;
+    max-width: none !important;
+    height: auto !important;
+    width: auto !important;
+    transform: none !important;
+    display: block !important;
+  }
+
+  /* Collapse every sibling branch that does NOT contain the invoice */
+  body > *:not(:has(.invoice-printable)),
+  #root > *:not(:has(.invoice-printable)) {
+    display: none !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  tr {
+    break-inside: avoid;
+  }
+}
+
+input:focus-visible, button:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible {
+  outline: 2px solid #B8863B;
+  outline-offset: 2px;
+}
