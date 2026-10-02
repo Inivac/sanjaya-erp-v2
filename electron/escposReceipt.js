@@ -31,7 +31,7 @@ export function generateEscposBuffer(data) {
   const printedTime = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   const orderDate = order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-GB') : new Date(order.startDate).toLocaleDateString('en-GB');
   const dueDate = new Date(order.endDate).toLocaleDateString('en-GB');
-  const isDryClean = Boolean(order.dryclean_status || order.isDryclean || order.drycleanStatus);
+  const isDryClean = Boolean(order.dryclean_status || order.drycleanStatus);
   
   const rentalDays = Math.max(
     Math.round((new Date(order.endDate).setHours(0,0,0,0) - new Date(order.startDate).setHours(0,0,0,0)) / (1000 * 60 * 60 * 24)),
@@ -46,7 +46,7 @@ export function generateEscposBuffer(data) {
     return 'Rs.' + str;
   };
 
-  const lineLength = 42; // Standard 80mm Font A width for this printer
+  const lineLength = 46; // Tuned for perfect centering on 80mm hardware
 
   // Helper to cleanly print left-right aligned rows
   const printRow = (left, right, width = lineLength) => {
@@ -63,9 +63,12 @@ export function generateEscposBuffer(data) {
   };
 
   printer.align('ct');
-  printer.size(1, 1);
-  printer.text(businessProfile?.name || 'Sanjaya Professional Tailors');
-  printer.size(0, 0);
+  printer.style('b');
+  printer.size(0, 1); // Normal width, double height so it fits on one line
+  const bName = (businessProfile?.name || 'Sanjaya Professional Tailors').toUpperCase();
+  printer.text(bName);
+  printer.size(0, 0); // Revert to normal size
+  printer.style('normal');
   
   if (businessProfile?.tagline) printer.text(businessProfile.tagline);
   if (businessProfile?.address) printer.text(businessProfile.address.replace(/\n/g, ' '));
@@ -119,7 +122,9 @@ export function generateEscposBuffer(data) {
 
       if (garments.length > 0) {
         garments.forEach((g, gi) => {
-          printRow(`${g.label}: ${g.value}`, gi === 0 ? formatLKR(d.rentOrSalePrice) : '');
+          // The database stores "ID — Description". Split and take only the ID.
+          const codeOnly = g.value.split(/ — | - /)[0].trim();
+          printRow(`${g.label}: ${codeOnly}`, gi === 0 ? formatLKR(d.rentOrSalePrice) : '');
         });
       } else {
         const itemName = d.name || d.itemName || `Item #${idx + 1}`;
@@ -133,7 +138,7 @@ export function generateEscposBuffer(data) {
   printer.text('-'.repeat(lineLength));
   
   printRow('Sub Total:', formatLKR(order.subTotal));
-  printRow('Dry Cleaning:', isDryClean ? 'Required' : 'No');
+  printRow('Dry Cleaning:', isDryClean ? 'Yes' : 'No');
   printRow('Advance Paid:', formatLKR(order.paymentReceived));
 
   printer.text('='.repeat(lineLength));

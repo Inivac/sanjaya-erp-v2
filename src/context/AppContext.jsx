@@ -70,9 +70,9 @@ const mapOrderFromDb = (o) => o ? ({
   remainingPayment: Number(o.remaining_payment || 0),
   paymentMethod: o.payment_method,
   status: o.status, // integer referencing order_status.id
-  isDryclean: Boolean(o.is_dryclean || o.dryclean_status),
-  drycleanStatus: Boolean(o.dryclean_status || o.is_dryclean),
-  dryclean_status: Boolean(o.dryclean_status || o.is_dryclean),
+  isDryclean: Boolean(o.is_dryclean),
+  drycleanStatus: Boolean(o.dryclean_status),
+  dryclean_status: Boolean(o.dryclean_status),
   remark: o.remark,
   createdAt: o.created_at,
   // order_details joined

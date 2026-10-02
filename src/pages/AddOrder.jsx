@@ -346,10 +346,13 @@ export default function AddOrder() {
     }
   }
 
+  const [submitting, setSubmitting] = useState(false)
+
   // ---- Submit order --------------------------------------------------------
   async function submit(e) {
     e.preventDefault()
     if (!customerId || !startDate || !endDate || orderLines.length === 0) return
+    setSubmitting(true)
     try {
       const orderDetails = orderLines.map(line => ({
         coat: line.coat?.id || null,
@@ -387,7 +390,7 @@ export default function AddOrder() {
               orderItems: newOrder.orderDetails || [], 
               businessProfile 
             },
-            printerName: 'Xprinter XP-80'
+            printerName: localStorage.getItem('erp_pos_printer') || 'Xprinter XP-80'
           })
         } catch (err) {
           console.error('Auto-print error:', err)
@@ -398,6 +401,8 @@ export default function AddOrder() {
       navigate('/orders')
     } catch (err) {
       alert(`Failed to submit order: ${err.message}`)
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -426,7 +431,7 @@ export default function AddOrder() {
                     onChange={setCustomerId}
                     options={dbCustomers}
                     placeholder="Search customer by name or phone…"
-                    displayKey={(c) => `${c.firstName} ${c.lastName} — ${c.phone}`}
+                    displayKey={(c) => `${[c.firstName, c.lastName].filter(Boolean).join(' ')} ${c.phone ? `— ${c.phone}` : ''}`.trim()}
                     loading={searchingCustomers}
                     onSearch={handleCustomerSearch}
                     debounceMs={300}
@@ -599,8 +604,13 @@ export default function AddOrder() {
             </div>
           </Card>
 
-          <Button type="submit" variant="brass" className="w-full" size="lg" icon={Plus}>
-            Submit Order &amp; Generate Invoice
+          <Button type="submit" variant="brass" className="w-full" size="lg" disabled={submitting} icon={submitting ? null : Plus}>
+            {submitting ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Saving &amp; Printing…
+              </span>
+            ) : 'Submit Order & Generate Invoice'}
           </Button>
         </div>
       </form>

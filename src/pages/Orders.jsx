@@ -122,9 +122,9 @@ export default function Orders() {
         remainingPayment: o.remaining_payment || 0,
         paymentMethod: o.payment_method,
         status: o.status,
-        isDryclean: Boolean(o.is_dryclean || o.dryclean_status),
-        drycleanStatus: Boolean(o.dryclean_status || o.is_dryclean),
-        dryclean_status: Boolean(o.dryclean_status || o.is_dryclean),
+        isDryclean: Boolean(o.is_dryclean),
+        drycleanStatus: Boolean(o.dryclean_status),
+        dryclean_status: Boolean(o.dryclean_status),
         remark: o.remark,
         createdAt: o.created_at,
         customerData: customersMap[o.customer_id] || null,
@@ -155,7 +155,8 @@ export default function Orders() {
     })
     if (ok) {
       try {
-        await updateOrder(order.id, { isDryclean: !order.isDryclean })
+        const { error } = await supabase.from('orders').update({ is_dryclean: !order.isDryclean }).eq('id', order.id)
+        if (error) throw error
         fetchOrders(page, debouncedSearch, statusFilter, fromDate, toDate)
       } catch (err) {
         alert(`Failed to update dry cleaning status: ${err.message}`)
@@ -324,7 +325,7 @@ export default function Orders() {
                                           orderItems: details.orderDetails || [],
                                           businessProfile
                                         },
-                                        printerName: 'Xprinter XP-80'
+                                        printerName: localStorage.getItem('erp_pos_printer') || 'Xprinter XP-80'
                                       })
                                     } else {
                                       setInvoicing(details)
@@ -421,29 +422,29 @@ export default function Orders() {
               </div>
               {viewing.remark && <p className="mt-4 rounded-lg bg-paper px-3 py-2 text-xs text-muted">{viewing.remark}</p>}
               <div className="mt-5 flex justify-end">
-                <Button variant="outline" icon={FileText} onClick={async () => { 
-                    setViewing(null);
-                    setLoadingInvoiceId(viewing.id);
-                    try {
-                      if (window.require) {
-                        const { ipcRenderer } = window.require('electron')
-                        const c = viewing.customerData
-                        const safeCustomer = c ? { ...c, lastName: c.lastName || '' } : null
-                        await ipcRenderer.invoke('print-escpos-receipt', {
-                          data: {
-                            order: viewing,
-                            customer: safeCustomer,
-                            orderItems: viewing.orderDetails || [],
-                            businessProfile
-                          },
-                          printerName: 'Xprinter XP-80'
-                        })
-                      } else {
-                        setInvoicing(viewing)
-                      }
-                    } finally {
-                      setLoadingInvoiceId(null);
+                <Button variant="outline" icon={FileText} onClick={async () => {
+                  setViewing(null);
+                  setLoadingInvoiceId(viewing.id);
+                  try {
+                    if (window.require) {
+                      const { ipcRenderer } = window.require('electron')
+                      const c = viewing.customerData
+                      const safeCustomer = c ? { ...c, lastName: c.lastName || '' } : null
+                      await ipcRenderer.invoke('print-escpos-receipt', {
+                        data: {
+                          order: viewing,
+                          customer: safeCustomer,
+                          orderItems: viewing.orderDetails || [],
+                          businessProfile
+                        },
+                        printerName: localStorage.getItem('erp_pos_printer') || 'Xprinter XP-80'
+                      })
+                    } else {
+                      setInvoicing(viewing)
                     }
+                  } finally {
+                    setLoadingInvoiceId(null);
+                  }
                 }}>
                   Instant Print Receipt
                 </Button>
