@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Search, Eye, Trash2, ClipboardList, FileText, CheckCircle2, Shirt } from 'lucide-react'
+import { Plus, Search, Eye, Trash2, ClipboardList, FileText, CheckCircle2, Shirt, Edit } from 'lucide-react'
 import { useApp } from '../context/AppContext.jsx'
 import { useConfirm } from '../context/ConfirmContext.jsx'
 import { PageHeader, Button, Card, Select, EmptyState, Modal, Input } from '../components/ui/Primitives.jsx'
@@ -41,6 +41,7 @@ export default function Orders() {
   const [returningOrder, setReturningOrder] = useState(null)
 
   const returnedStatusId = orderStatuses.find(s => s.name?.toLowerCase() === 'returned')?.id
+  const cancelledStatusId = orderStatuses.find(s => s.name?.toLowerCase() === 'cancelled')?.id
 
   const fetchOrders = useCallback(async (currentPage, searchQuery, statFilter, fromFilter, toFilter) => {
     setDbLoading(true)
@@ -111,6 +112,34 @@ export default function Orders() {
         }
       }
 
+      const orderIds = data.map(o => o.id)
+      let detailsMap = {}
+      if (orderIds.length > 0) {
+        const { data: dData } = await supabase.from('order_details').select('*').in('order_id', orderIds)
+        if (dData && dData.length > 0) {
+          const itemIds = [...new Set(dData.flatMap(x => [x.coat, x.trouser, x.west, x.national].filter(Boolean)))]
+          let itemsMap = {}
+          if (itemIds.length > 0) {
+            const { data: iData } = await supabase.from('items').select('id, coat_no, name').in('id', itemIds)
+            if (iData) {
+              iData.forEach(i => {
+                itemsMap[i.id] = (i.coat_no || i.name || String(i.id))
+              })
+            }
+          }
+          dData.forEach(d => {
+            if (!detailsMap[d.order_id]) detailsMap[d.order_id] = []
+            detailsMap[d.order_id].push({
+              ...d,
+              coat_label: d.coat ? itemsMap[d.coat] : null,
+              trouser_label: d.trouser ? itemsMap[d.trouser] : null,
+              west_label: d.west ? itemsMap[d.west] : null,
+              national_label: d.national ? itemsMap[d.national] : null,
+            })
+          })
+        }
+      }
+
       setPaginatedOrders(data.map(o => ({
         id: o.id,
         invoiceNumber: o.invoice_number,
@@ -128,7 +157,7 @@ export default function Orders() {
         remark: o.remark,
         createdAt: o.created_at,
         customerData: customersMap[o.customer_id] || null,
-        orderDetails: []
+        orderDetails: detailsMap[o.id] || []
       })))
       if (count !== null) setTotalCount(count)
     } catch (err) {
@@ -256,6 +285,7 @@ export default function Orders() {
                   <tr>
                     <th className="px-4 py-3 font-medium">Invoice</th>
                     <th className="px-4 py-3 font-medium">Customer</th>
+                    <th className="px-4 py-3 font-medium">Items</th>
                     <th className="px-4 py-3 font-medium">Date</th>
                     <th className="px-4 py-3 font-medium">Sub Total</th>
                     <th className="px-4 py-3 font-medium">Balance</th>
@@ -283,7 +313,20 @@ export default function Orders() {
                           <p className="font-medium text-ink">{c ? [c.firstName, c.lastName].filter(Boolean).join(' ') : '—'}</p>
                           <p className="text-xs text-muted">{c?.phone}</p>
                         </td>
-                        <td className="px-4 py-3 text-muted">{formatDate(o.startDate)}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-1 max-w-[200px]">
+                            {o.orderDetails && o.orderDetails.length > 0 ? (
+                              o.orderDetails.flatMap(d => [d.coat_label, d.trouser_label, d.west_label, d.national_label].filter(Boolean)).map((label, idx) => (
+                                <span key={idx} className="inline-flex rounded bg-paper px-1.5 py-0.5 text-xs text-ink shadow-sm border border-line">
+                                  {label}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs text-muted">—</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-muted">{formatDate(o.createdAt)}</td>
                         <td className="px-4 py-3 font-medium text-ink">{formatLKR(o.subTotal)}</td>
                         <td className="px-4 py-3">{o.remainingPayment > 0 ? <span className="text-burgundy font-medium">{formatLKR(o.remainingPayment)}</span> : <span className="text-sage">Paid</span>}</td>
                         <td className="px-4 py-3">
@@ -306,7 +349,7 @@ export default function Orders() {
                         <td className="px-4 py-3">
                           <div className="flex justify-end gap-1">
                             {o.status !== returnedStatusId && returnedStatusId && (
-                              <button onClick={() => handleStatusChange(o, returnedStatusId)} title="Mark as Returned" className="rounded-lg p-1.5 text-muted hover:bg-sage-50 hover:text-sage"><CheckCircle2 size={14} /></button>
+                              <button onClick={() => handleStatusChange(o, returnedStatusId)} title={o.remainingPayment > 0 ? "Complete Payment" : "Mark as Returned"} className="rounded-lg p-1.5 text-muted hover:bg-sage-50 hover:text-sage"><CheckCircle2 size={14} /></button>
                             )}
                             <button
                               onClick={async () => {
@@ -347,6 +390,9 @@ export default function Orders() {
                                 <FileText size={14} />
                               )}
                             </button>
+                            {(![returnedStatusId, cancelledStatusId].includes(o.status)) && (
+                              <Link to={`/orders/edit/${o.id}`} title="Edit order" className="rounded-lg p-1.5 text-muted hover:bg-paper hover:text-ink"><Edit size={14} /></Link>
+                            )}
                             <button onClick={async () => setViewing(await fetchOrderWithDetails(o.id))} title="View order details" className="rounded-lg p-1.5 text-muted hover:bg-paper hover:text-ink"><Eye size={14} /></button>
                             <button onClick={() => handleDelete(o)} title="Delete order" className="rounded-lg p-1.5 text-muted hover:bg-burgundy-50 hover:text-burgundy"><Trash2 size={14} /></button>
                           </div>

@@ -254,16 +254,16 @@ STABLE
 AS $$
 DECLARE
   result json;
-  v_month_start date := date_trunc('month', CURRENT_DATE)::date;
-  v_last_month_start date := (date_trunc('month', CURRENT_DATE) - INTERVAL '1 month')::date;
-  v_last_month_end date := (date_trunc('month', CURRENT_DATE) - INTERVAL '1 day')::date;
+  v_days_diff integer := p_end_date - p_start_date;
+  v_last_month_end date := (p_start_date - INTERVAL '1 day')::date;
+  v_last_month_start date := (p_start_date - (v_days_diff + 1) * INTERVAL '1 day')::date;
   v_revenue_total numeric;
   v_revenue_last_month numeric;
 BEGIN
   -- Revenue this month vs last month (for the % change KPI)
   SELECT COALESCE(SUM(payment_received), 0) INTO v_revenue_total
   FROM orders
-  WHERE created_at::date >= v_month_start AND created_at::date <= CURRENT_DATE;
+  WHERE created_at::date >= p_start_date AND created_at::date <= p_end_date;
 
   SELECT COALESCE(SUM(payment_received), 0) INTO v_revenue_last_month
   FROM orders
@@ -294,17 +294,20 @@ BEGIN
       ),
 
       'outstanding_payments', (
-        SELECT COALESCE(SUM(remaining_payment), 0) FROM orders WHERE remaining_payment > 0
+        SELECT COALESCE(SUM(remaining_payment), 0) FROM orders 
+        WHERE remaining_payment > 0 
+          AND created_at::date >= p_start_date AND created_at::date <= p_end_date
       ),
       'outstanding_invoices_count', (
-        SELECT COUNT(*) FROM orders WHERE remaining_payment > 0
+        SELECT COUNT(*) FROM orders 
+        WHERE remaining_payment > 0 
+          AND created_at::date >= p_start_date AND created_at::date <= p_end_date
       ),
 
       'overdue_returns', (
-        SELECT COUNT(*) FROM orders o
-        LEFT JOIN order_status os ON os.id = o.status
-        WHERE os.name ILIKE ANY (ARRAY['%progress%','%active%','%use%','%rented%'])
-          AND o.end_date < CURRENT_DATE
+        SELECT COUNT(*) FROM laundry_items l
+        JOIN orders o ON l.order_id = o.id
+        WHERE o.is_dryclean = true
       )
     ),
 

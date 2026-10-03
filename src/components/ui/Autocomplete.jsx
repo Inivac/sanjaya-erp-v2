@@ -13,7 +13,8 @@ export default function Autocomplete({
   loading = false,
   onSearch,
   debounceMs = 300,
-  disabled = false
+  disabled = false,
+  isDisabled = null, // function(option) => boolean — marks individual options as non-selectable (shows "Booked")
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -28,7 +29,6 @@ export default function Autocomplete({
         onSearch(searchTerm)
       }
     }, debounceMs)
-
     return () => clearTimeout(timer)
   }, [searchTerm, debounceMs, onSearch, value])
 
@@ -50,10 +50,15 @@ export default function Autocomplete({
 
   function getOptionValue(option) {
     if (typeof option === 'string') return option
-    return option.id || option.value
+    return String(option.id || option.value || '')
+  }
+
+  function isOptionDisabled(option) {
+    return typeof isDisabled === 'function' ? isDisabled(option) : false
   }
 
   function handleSelect(option) {
+    if (isOptionDisabled(option)) return // block selecting booked items
     const val = getOptionValue(option)
     onChange(val)
     setSearchTerm(getOptionDisplay(option))
@@ -79,8 +84,8 @@ export default function Autocomplete({
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault()
-        setHighlightedIndex(prev => 
-          prev < options.length - 1 ? prev + 1 : prev
+        setHighlightedIndex(prev =>
+          prev < filteredOptions.length - 1 ? prev + 1 : prev
         )
         break
       case 'ArrowUp':
@@ -89,8 +94,8 @@ export default function Autocomplete({
         break
       case 'Enter':
         e.preventDefault()
-        if (highlightedIndex >= 0 && options[highlightedIndex]) {
-          handleSelect(options[highlightedIndex])
+        if (highlightedIndex >= 0 && filteredOptions[highlightedIndex]) {
+          handleSelect(filteredOptions[highlightedIndex])
         }
         break
       case 'Escape':
@@ -101,15 +106,16 @@ export default function Autocomplete({
   }
 
   function filterOptions() {
-    if (!searchTerm) return options.slice(0, 10)
+    if (!searchTerm) return options.slice(0, 50)
     const term = searchTerm.toLowerCase()
     return options.filter(opt => {
       const display = getOptionDisplay(opt).toLowerCase()
       return display.includes(term)
-    }).slice(0, 10)
+    }).slice(0, 50)
   }
 
   const filteredOptions = filterOptions()
+  const hasSelectableOptions = filteredOptions.some(o => !isOptionDisabled(o))
 
   return (
     <div className="relative">
@@ -124,7 +130,6 @@ export default function Autocomplete({
           }}
           onFocus={() => setIsOpen(true)}
           onBlur={() => {
-            // Delay closing to allow click on option
             setTimeout(() => setIsOpen(false), 200)
           }}
           onKeyDown={handleKeyDown}
@@ -155,25 +160,44 @@ export default function Autocomplete({
           ref={listRef}
           className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-line bg-white shadow-pop"
         >
-          {filteredOptions.map((option, index) => (
-            <li
-              key={getOptionValue(option)}
-              onClick={() => handleSelect(option)}
-              className={clsx(
-                'cursor-pointer px-3 py-2 text-sm',
-                highlightedIndex === index ? 'bg-brass/10 text-ink' : 'text-ink hover:bg-paper',
-                getOptionValue(option) === value && 'font-medium text-brass-dark'
-              )}
-            >
-              {getOptionDisplay(option)}
-            </li>
-          ))}
+          {filteredOptions.map((option, index) => {
+            const optDisabled = isOptionDisabled(option)
+            return (
+              <li
+                key={getOptionValue(option)}
+                onClick={() => handleSelect(option)}
+                className={clsx(
+                  'flex items-center justify-between px-3 py-2 text-sm',
+                  optDisabled
+                    ? 'cursor-not-allowed opacity-60'
+                    : 'cursor-pointer text-ink hover:bg-paper',
+                  !optDisabled && highlightedIndex === index && 'bg-brass/10 text-ink',
+                  !optDisabled && getOptionValue(option) === value && 'font-medium text-brass-dark',
+                )}
+              >
+                <span className={clsx('truncate', optDisabled && 'line-through text-muted')}>
+                  {getOptionDisplay(option)}
+                </span>
+                {optDisabled && (
+                  <span className="ml-2 shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold bg-burgundy/10 text-burgundy">
+                    Booked
+                  </span>
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
 
       {isOpen && searchTerm && filteredOptions.length === 0 && !loading && (
         <div className="absolute z-10 mt-1 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-muted">
           No results found
+        </div>
+      )}
+
+      {isOpen && searchTerm && filteredOptions.length > 0 && !hasSelectableOptions && !loading && (
+        <div className="absolute z-10 mt-1 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-muted">
+          All matching items are booked for these dates
         </div>
       )}
     </div>

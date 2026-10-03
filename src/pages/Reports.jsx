@@ -71,9 +71,9 @@ export default function Reports() {
 
 
 
-      let ordersQuery = supabase.from('orders').select('*').order('start_date', { ascending: false }).limit(200)
-      if (fromDate) ordersQuery = ordersQuery.gte('start_date', fromDate)
-      if (toDate) ordersQuery = ordersQuery.lte('start_date', toDate)
+      let ordersQuery = supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(200)
+      if (fromDate) ordersQuery = ordersQuery.gte('created_at', fromDate)
+      if (toDate) ordersQuery = ordersQuery.lte('created_at', toDate)
       const { data: dbOrdersRaw } = await ordersQuery
 
       const customerIds = [...new Set((dbOrdersRaw || []).map(o => o.customer_id).filter(Boolean))]
@@ -189,7 +189,7 @@ export default function Reports() {
     if (tab === 'payments') {
       const rows = data.revenue.map(r => ({
         Invoice: r.invoiceNumber || `#${r.id}`,
-        Customer: r.customerData ? `${r.customerData.first_name} ${r.customerData.last_name}` : '—',
+        Customer: r.customerData ? [r.customerData.first_name, r.customerData.last_name].filter(Boolean).join(' ') : '—',
         Type: r.type,
         Date: r.date,
         Total_Amount_LKR: r.totalAmount,
@@ -203,7 +203,7 @@ export default function Reports() {
     if (tab === 'customers') {
       const rows = data.topCustomers.map(({ customer, total, count }) => ({
         Customer_ID: customer.id,
-        Customer: `${customer.first_name} ${customer.last_name}`,
+        Customer: [customer.first_name, customer.last_name].filter(Boolean).join(' '),
         Orders: count,
         Total_Spend_LKR: total,
       }))
@@ -213,7 +213,7 @@ export default function Reports() {
 
     const rows = data.overdueOrders.map(o => ({
       Invoice: o.invoiceNumber || `#${o.id}`,
-      Customer: o.customerData ? `${o.customerData.first_name} ${o.customerData.last_name}` : '—',
+      Customer: o.customerData ? [o.customerData.first_name, o.customerData.last_name].filter(Boolean).join(' ') : '—',
       Due_Date: o.endDate,
       Outstanding_LKR: o.remainingPayment,
     }))
@@ -281,7 +281,7 @@ export default function Reports() {
     data.revenue.forEach(r => {
       const rowData = [
         r.invoiceNumber || `#${r.id}`,
-        r.customerData ? `${r.customerData.first_name} ${r.customerData.last_name}` : '—',
+        r.customerData ? [r.customerData.first_name, r.customerData.last_name].filter(Boolean).join(' ') : '—',
         formatDate(r.date),
         r.type || 'Payment',
         formatLKR(r.totalAmount),
@@ -414,7 +414,7 @@ export default function Reports() {
                       {data.revenue.slice((salePage - 1) * 10, salePage * 10).map(s => (
                         <tr key={s.id} className="border-t border-line/60">
                           <td className="px-4 py-3 font-mono text-xs text-ink">{s.invoiceNumber || `#${s.id}`}</td>
-                          <td className="px-4 py-3 text-ink">{s.customerData ? `${s.customerData.first_name} ${s.customerData.last_name}` : '—'}</td>
+                          <td className="px-4 py-3 text-ink">{s.customerData ? [s.customerData.first_name, s.customerData.last_name].filter(Boolean).join(' ') : '—'}</td>
                           <td className="px-4 py-3 text-muted">{formatDate(s.date)}</td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${s.type === 'Settlement' ? 'bg-sage-50 text-sage' : 'bg-brass-50 text-brass-dark'}`}>
@@ -459,7 +459,7 @@ export default function Reports() {
                     <tbody>
                       {data.topCustomers.map(({ customer, total, count }) => (
                         <tr key={customer.id} className="border-t border-line/60">
-                          <td className="px-4 py-3 font-medium text-ink">{customer.first_name} {customer.last_name}</td>
+                          <td className="px-4 py-3 font-medium text-ink">{[customer.first_name, customer.last_name].filter(Boolean).join(' ')}</td>
                           <td className="px-4 py-3 text-muted">{count}</td>
                           <td className="px-4 py-3 font-medium text-ink">{formatLKR(total)}</td>
                         </tr>
@@ -490,7 +490,7 @@ export default function Reports() {
                         return (
                           <tr key={o.id} className="border-t border-line/60">
                             <td className="px-4 py-3 font-mono text-xs text-ink">{o.invoiceNumber || `#${o.id}`}</td>
-                            <td className="px-4 py-3 text-ink">{c ? `${c.first_name} ${c.last_name}` : '—'}</td>
+                            <td className="px-4 py-3 text-ink">{c ? [c.first_name, c.last_name].filter(Boolean).join(' ') : '—'}</td>
                             <td className="px-4 py-3 text-muted">{formatDate(o.endDate)}</td>
                             <td className="px-4 py-3 font-medium text-burgundy">{formatLKR(o.remainingPayment)}</td>
                           </tr>

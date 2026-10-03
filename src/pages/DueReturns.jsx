@@ -222,7 +222,7 @@ export default function DueReturns() {
                         <td className="px-4 py-3"><Badge tone={isLate ? 'burgundy' : 'brass'}>{isLate ? 'Overdue' : getStatusName(o.status)}</Badge></td>
                         <td className="px-4 py-3 text-right">
                           <Button size="sm" variant="subtle" icon={CheckCircle2} onClick={() => markReturned(o)}>
-                            Mark Returned
+                            {o.remainingPayment > 0 ? "Complete Payment" : "Mark Returned"}
                           </Button>
                         </td>
                       </tr>

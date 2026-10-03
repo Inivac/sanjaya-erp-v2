@@ -186,10 +186,10 @@ const InvoiceDocument = forwardRef(function InvoiceDocument({ order, customer, o
         {(orderItems && orderItems.length > 0) ? (
           orderItems.map((d, idx) => {
             const garments = [
-              d.coat && { label: 'Coat', value: d.coat },
-              d.trouser && { label: 'Trouser', value: d.trouser },
-              d.west && { label: 'Vest', value: d.west },
-              d.national && { label: 'National', value: d.national },
+              d.coat_label && { label: 'Coat', value: d.coat_label },
+              d.trouser_label && { label: 'Trouser', value: d.trouser_label },
+              d.west_label && { label: 'Vest', value: d.west_label },
+              d.national_label && { label: 'National', value: d.national_label },
             ].filter(Boolean)
 
             return (

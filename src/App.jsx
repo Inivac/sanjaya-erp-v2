@@ -37,6 +37,7 @@ function AppShell() {
               <Route path="/customers" element={<Customers />} />
               <Route path="/orders" element={<Orders />} />
               <Route path="/orders/new" element={<AddOrder />} />
+              <Route path="/orders/edit/:id" element={<AddOrder />} />
               <Route path="/returns" element={<DueReturns />} />
               <Route path="/laundry" element={<Laundry />} />
               <Route path="/accounting" element={<Accounting />} />

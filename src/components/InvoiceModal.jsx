@@ -25,7 +25,7 @@ export default function InvoiceModal({ open, onClose, order, justCreated = false
     if (window.require) {
       const { ipcRenderer } = window.require('electron')
       try {
-        const result = await ipcRenderer.invoke('print-escpos-receipt', { 
+        const result = await ipcRenderer.invoke('print-escpos-receipt', {
           data: { order, customer: safeCustomer, orderItems, businessProfile },
           printerName: 'Xprinter XP-80'
         })

@@ -4,7 +4,7 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell,
 } from 'recharts'
-import { Wallet, ClipboardList, Undo2, AlertTriangle, ArrowUpRight, Plus } from 'lucide-react'
+import { Wallet, ClipboardList, Undo2, AlertTriangle, ArrowUpRight, Plus, Shirt } from 'lucide-react'
 import { useApp } from '../context/AppContext.jsx'
 import { Card, PageHeader, Button } from '../components/ui/Primitives.jsx'
 import StatCard from '../components/ui/StatCard.jsx'
@@ -155,7 +155,7 @@ export default function Dashboard() {
   const { activeRentals, overdue, dueToday, revenueMTD, outstanding, unpaidInvoices, recentOrders, categoryData, totalItems, revenueTrend, revenueMtdChangePct } = dashboardData
 
   const revenueDelta = revenueMtdChangePct !== null 
-    ? `${revenueMtdChangePct >= 0 ? '↑' : '↓'} ${Math.abs(revenueMtdChangePct)}% vs last month`
+    ? `${revenueMtdChangePct >= 0 ? '↑' : '↓'} ${Math.abs(revenueMtdChangePct)}% vs prior period`
     : 'No data for comparison'
 
   return (
@@ -186,7 +186,7 @@ export default function Dashboard() {
         <StatCard label="Total Revenue" value={formatLKR(revenueMTD)} icon={Wallet} accent="sage" delta={revenueDelta} deltaTone={revenueMtdChangePct >= 0 ? 'sage' : 'burgundy'} />
         <StatCard label="Active Rentals" value={activeRentals} icon={ClipboardList} accent="brass" delta={`${dueToday.length} due back today`} deltaTone={dueToday.length ? 'burgundy' : 'sage'} />
         <StatCard label="Outstanding Payments" value={formatLKR(outstanding)} icon={Undo2} accent="burgundy" delta={`${unpaidInvoices} unpaid invoices`} deltaTone="burgundy" />
-        <StatCard label="Overdue Returns" value={overdue.length} icon={AlertTriangle} accent="burgundy" delta={overdue.length ? 'Needs follow-up' : 'All clear'} deltaTone={overdue.length ? 'burgundy' : 'sage'} />
+        <StatCard label="Dry Cleaning Items" value={overdue.length} icon={Shirt} accent="brass" delta="Pending items" deltaTone="sage" />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">

@@ -55,6 +55,10 @@ const mapOrderDetailFromDb = (d) => d ? ({
   trouser: d.trouser,
   west: d.west,
   national: d.national,
+  coat_label: d.coat_label,
+  trouser_label: d.trouser_label,
+  west_label: d.west_label,
+  national_label: d.national_label,
   rentOrSalePrice: Number(d.rent_or_sale_price || 0)
 }) : null
 
@@ -150,7 +154,7 @@ export function AppProvider({ children }) {
   const addItemCategory = useCallback(async (name) => {
     const { data, error } = await supabase.from('item_categories').insert({ name }).select().single()
     if (error) throw error
-    setItemCategories(prev => [...prev, mapCategoryFromDb(data)].sort((a,b) => a.name.localeCompare(b.name)))
+    setItemCategories(prev => [...prev, mapCategoryFromDb(data)].sort((a, b) => a.name.localeCompare(b.name)))
     return data
   }, [])
 
@@ -260,7 +264,7 @@ export function AppProvider({ children }) {
       supabase.from('order_details').select('*').eq('order_id', orderId),
       fullOrder.customer_id ? supabase.from('customers').select('*').eq('id', fullOrder.customer_id).maybeSingle() : { data: null }
     ])
-    
+
     // Resolve item IDs to coat_no & name
     const details = d || []
     const itemIds = [...new Set(details.flatMap(x => [x.coat, x.trouser, x.west, x.national].filter(Boolean)))]
@@ -276,13 +280,13 @@ export function AppProvider({ children }) {
       }
     }
 
-    // Replace the raw IDs in the DB object with the newly resolved labels
+    // Replace the raw IDs in the DB object with the newly resolved labels (store labels in _label, keep original IDs)
     const resolvedDetails = details.map(x => ({
       ...x,
-      coat:     x.coat     ? coatMap[x.coat]     || String(x.coat)     : null,
-      trouser:  x.trouser  ? coatMap[x.trouser]  || String(x.trouser)  : null,
-      west:     x.west     ? coatMap[x.west]     || String(x.west)     : null,
-      national: x.national ? coatMap[x.national] || String(x.national) : null,
+      coat_label: x.coat ? coatMap[x.coat] || String(x.coat) : null,
+      trouser_label: x.trouser ? coatMap[x.trouser] || String(x.trouser) : null,
+      west_label: x.west ? coatMap[x.west] || String(x.west) : null,
+      national_label: x.national ? coatMap[x.national] || String(x.national) : null,
     }))
 
     return mapOrderFromDb({ ...fullOrder, customers: c || null, order_details: resolvedDetails })
@@ -309,7 +313,7 @@ export function AppProvider({ children }) {
       payment_method: order.paymentMethod,
       status: order.status, // integer
       is_dryclean: false,
-      dryclean_status: order.isDryclean || false,
+      dryclean_status: order.isDryclean,
       remark: order.remark || null,
     }
 
@@ -375,7 +379,7 @@ export function AppProvider({ children }) {
     if (patch.remainingPayment !== undefined) mapped.remaining_payment = patch.remainingPayment
     if (patch.paymentMethod !== undefined) mapped.payment_method = patch.paymentMethod
     if (patch.status !== undefined) mapped.status = patch.status
-    if (patch.isDryclean !== undefined) mapped.is_dryclean = patch.isDryclean
+    // if (patch.isDryclean !== undefined) mapped.is_dryclean = patch.isDryclean
     if (patch.drycleanStatus !== undefined) mapped.dryclean_status = patch.drycleanStatus
     if (patch.remark !== undefined) mapped.remark = patch.remark || null
 
@@ -416,6 +420,44 @@ export function AppProvider({ children }) {
     }
 
     setOrders(prev => prev.map(o => o.id === id ? { ...o, ...patch } : o))
+  }, [])
+
+  const updateFullOrder = useCallback(async (id, order) => {
+    // 1. Update orders table
+    const mapped = {
+      customer_id: order.customerId,
+      start_date: order.startDate,
+      end_date: order.endDate,
+      sub_total: order.subTotal,
+      payment_received: order.paymentReceived,
+      remaining_payment: order.remainingPayment,
+      payment_method: order.paymentMethod,
+      status: order.status,
+      // is_dryclean: order.isDryclean || false,
+      remark: order.remark || null,
+    }
+    const { error: oErr } = await supabase.from('orders').update(mapped).eq('id', id)
+    if (oErr) throw oErr
+
+    // 2. Replace order_details
+    const { error: delErr } = await supabase.from('order_details').delete().eq('order_id', id)
+    if (delErr) throw delErr
+
+    if (order.orderDetails && order.orderDetails.length > 0) {
+      const detailRows = order.orderDetails.map(d => ({
+        order_id: id,
+        coat: d.coat || null,
+        trouser: d.trouser || null,
+        west: d.west || null,
+        national: d.national || null,
+        rent_or_sale_price: d.rentOrSalePrice || 0,
+      }))
+      const { error: detailErr } = await supabase.from('order_details').insert(detailRows)
+      if (detailErr) throw detailErr
+    }
+
+    // Refresh context orders list slightly (though usually full refresh happens on page load)
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, ...order } : o))
   }, [])
 
   const deleteOrder = useCallback(async (id) => {
@@ -469,10 +511,10 @@ export function AppProvider({ children }) {
       password: u.password,
       email_confirm: true
     })
-    
+
     if (authError) throw authError
     userId = authData?.user?.id
-    
+
     if (!userId) throw new Error("Could not create user in auth table")
 
     const mapped = {
@@ -486,7 +528,7 @@ export function AppProvider({ children }) {
     const { error: dbError } = await supabaseAdmin.from('users').insert(mapped)
     if (dbError) throw dbError
 
-    setUsers(prev => [...prev, { id: userId, name: u.name, email: u.email, role: u.role, status: 'Invited', lastLogin: '—' }].sort((a,b) => a.name.localeCompare(b.name)))
+    setUsers(prev => [...prev, { id: userId, name: u.name, email: u.email, role: u.role, status: 'Invited', lastLogin: '—' }].sort((a, b) => a.name.localeCompare(b.name)))
   }, [])
 
   const updateUser = useCallback(async (id, patch) => {
@@ -539,7 +581,7 @@ export function AppProvider({ children }) {
     itemCategories, getCategoryName, addItemCategory, deleteItemCategory,
     orderStatuses, getStatusName,
     addCustomer, updateCustomer, deleteCustomer,
-    orders, addOrder, updateOrder, deleteOrder, nextInvoiceNumber, fetchOrderWithDetails,
+    orders, addOrder, updateOrder, updateFullOrder, deleteOrder, nextInvoiceNumber, fetchOrderWithDetails,
     expenses, addExpense, deleteExpense,
     users, addUser, updateUser, deleteUser,
     businessProfile, setBusinessProfile: updateBusinessProfile,
@@ -549,7 +591,7 @@ export function AppProvider({ children }) {
     items, itemCategories, orderStatuses, orders, expenses, users, businessProfile, loading,
     addItem, updateItem, deleteItem, getCategoryName, addItemCategory, deleteItemCategory, getStatusName,
     addCustomer, updateCustomer, deleteCustomer,
-    addOrder, updateOrder, deleteOrder, nextInvoiceNumber, fetchOrderWithDetails,
+    addOrder, updateOrder, updateFullOrder, deleteOrder, nextInvoiceNumber, fetchOrderWithDetails,
     addExpense, deleteExpense, addUser, updateUser, deleteUser,
     updateBusinessProfile, findItem
   ])

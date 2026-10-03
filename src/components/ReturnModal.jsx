@@ -29,10 +29,7 @@ export default function ReturnModal({ open, order, onClose, onConfirm }) {
   async function handleSubmit(e) {
     e.preventDefault()
     try {
-      // Find the 'Returned' status id
-      const returnedStatusId = orderStatuses.find(s => s.name?.toLowerCase() === 'returned')?.id
       await onConfirm(order.id, {
-        status: returnedStatusId,
         paymentReceived: newReceived,
         remainingPayment: newRemaining,
         paymentMethod: paymentMethod,
@@ -45,7 +42,7 @@ export default function ReturnModal({ open, order, onClose, onConfirm }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={`Settle Payment & Return — Invoice ${order.invoiceNumber || `#${order.id}`}`} width="max-w-md">
+    <Modal open={open} onClose={onClose} title={`Settle Payment — Invoice ${order.invoiceNumber || `#${order.id}`}`} width="max-w-md">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <h4 className="font-semibold text-ink">Customer</h4>
@@ -98,7 +95,7 @@ export default function ReturnModal({ open, order, onClose, onConfirm }) {
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="brass">Confirm Return &amp; Save Payment</Button>
+          <Button type="submit" variant="brass">Save Payment</Button>
         </div>
       </form>
     </Modal>
