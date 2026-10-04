@@ -399,9 +399,57 @@ export default function AddOrder() {
     email: '',
     address: '',
   })
+  const [customerErrors, setCustomerErrors] = useState({})
+
+  function validateCustomerField(field, value) {
+    switch (field) {
+      case 'firstName':
+        if (!value.trim()) return 'First name is required'
+        if (value.length > 50) return 'Max 50 characters'
+        return ''
+      case 'lastName':
+        if (value && value.length > 50) return 'Max 50 characters'
+        return ''
+      case 'phone':
+      case 'phone2': {
+        if (field === 'phone' && !value.trim()) return 'Phone number is required'
+        if (!value) return ''
+        if (!/^\d+$/.test(value)) return 'Only digits allowed'
+        if (!value.startsWith('0')) return 'Must start with 0'
+        if (value.length !== 10) return 'Must be exactly 10 digits'
+        return ''
+      }
+      case 'nic':
+        if (!value) return ''
+        if (!/^(\d{9}[VvXx]|\d{12})$/.test(value)) return 'Invalid NIC (e.g. 991234567V or 199912345678)'
+        return ''
+      case 'email':
+        if (!value) return ''
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Invalid email address'
+        return ''
+      case 'address':
+        if (value && value.length > 200) return 'Max 200 characters'
+        return ''
+      default:
+        return ''
+    }
+  }
+
+  function handleCustomerField(field, value) {
+    setNewCustomer(prev => ({ ...prev, [field]: value }))
+    setCustomerErrors(prev => ({ ...prev, [field]: validateCustomerField(field, value) }))
+  }
+
+  const hasCustomerErrors = Object.values(customerErrors).some(Boolean)
 
   async function handleAddCustomer(e) {
     e.preventDefault()
+    // Run full validation before submit
+    const fields = ['firstName', 'lastName', 'phone', 'phone2', 'nic', 'email', 'address']
+    const errors = {}
+    fields.forEach(f => { errors[f] = validateCustomerField(f, newCustomer[f]) })
+    setCustomerErrors(errors)
+    if (Object.values(errors).some(Boolean)) return
     if (!newCustomer.firstName || !newCustomer.phone) return
     setSavingCustomer(true)
     try {
@@ -424,13 +472,14 @@ export default function AddOrder() {
         .single()
       if (error) throw error
 
-      setDbCustomers(prev => [
-        { id: data.id, firstName: data.first_name, lastName: data.last_name, phone: data.phone },
-        ...prev,
-      ])
-      setCustomerId(String(data.id))
+      const newCust = { id: data.id, firstName: data.first_name, lastName: data.last_name, phone: data.phone }
+      setDbCustomers(prev => [newCust, ...prev])
       setShowAddCustomer(false)
       setNewCustomer({ firstName: '', lastName: '', nic: '', phone: '', phone2: '', email: '', address: '' })
+      setCustomerErrors({})
+      // Set customerId after the new customer is committed to options so the
+      // Autocomplete's useEffect can find it and display the name correctly.
+      setTimeout(() => setCustomerId(String(data.id)), 0)
     } catch (err) {
       alert(`Failed to add customer: ${err.message}`)
     } finally {
@@ -679,7 +728,27 @@ export default function AddOrder() {
                 <span className="font-medium text-ink">{formatLKR(totalPrice)}</span>
               </div>
               <Field label="Payment Received (LKR)">
-                <Input type="number" min="0" value={paymentReceived} onChange={e => setPaymentReceived(e.target.value)} placeholder="0.00" />
+                <Input
+                  type="number"
+                  min="0"
+                  max={totalPrice || undefined}
+                  value={paymentReceived}
+                  onChange={e => {
+                    const val = e.target.value
+                    if (totalPrice > 0 && Number(val) > totalPrice) {
+                      setPaymentReceived(String(totalPrice))
+                    } else {
+                      setPaymentReceived(val)
+                    }
+                  }}
+                  placeholder="0.00"
+                  className={totalPrice > 0 && Number(paymentReceived) > totalPrice ? 'border-burgundy ring-1 ring-burgundy' : ''}
+                />
+                {totalPrice > 0 && Number(paymentReceived) > totalPrice && (
+                  <p className="mt-1 text-xs text-burgundy font-medium">
+                    ⚠ Payment received cannot exceed the total price ({formatLKR(totalPrice)})
+                  </p>
+                )}
               </Field>
               <div className="flex items-center justify-between rounded-lg border border-line px-3 py-2 text-sm">
                 <span className="text-muted">Remaining Payment</span>
@@ -723,32 +792,87 @@ export default function AddOrder() {
       </form>
 
       {/* Add Customer modal */}
-      <Modal open={showAddCustomer} onClose={() => setShowAddCustomer(false)} title="Add Customer">
-        <form onSubmit={handleAddCustomer} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <Modal open={showAddCustomer} onClose={() => { setShowAddCustomer(false); setCustomerErrors({}) }} title="Add Customer">
+        <form onSubmit={handleAddCustomer} className="grid grid-cols-1 gap-4 sm:grid-cols-2" noValidate>
           <Field label="First Name" required>
-            <Input required value={newCustomer.firstName} onChange={e => setNewCustomer({ ...newCustomer, firstName: e.target.value })} />
+            <Input
+              required
+              maxLength={50}
+              value={newCustomer.firstName}
+              onChange={e => handleCustomerField('firstName', e.target.value)}
+              className={customerErrors.firstName ? 'border-burgundy ring-1 ring-burgundy' : ''}
+            />
+            {customerErrors.firstName && <p className="mt-1 text-xs text-burgundy">{customerErrors.firstName}</p>}
           </Field>
           <Field label="Last Name">
-            <Input value={newCustomer.lastName} onChange={e => setNewCustomer({ ...newCustomer, lastName: e.target.value })} />
+            <Input
+              maxLength={50}
+              value={newCustomer.lastName}
+              onChange={e => handleCustomerField('lastName', e.target.value)}
+              className={customerErrors.lastName ? 'border-burgundy ring-1 ring-burgundy' : ''}
+            />
+            {customerErrors.lastName && <p className="mt-1 text-xs text-burgundy">{customerErrors.lastName}</p>}
           </Field>
           <Field label="NIC No.">
-            <Input value={newCustomer.nic} onChange={e => setNewCustomer({ ...newCustomer, nic: e.target.value })} placeholder="e.g. 991234567V" />
+            <Input
+              value={newCustomer.nic}
+              maxLength={12}
+              onChange={e => handleCustomerField('nic', e.target.value)}
+              placeholder="e.g. 991234567V or 199912345678"
+              className={customerErrors.nic ? 'border-burgundy ring-1 ring-burgundy' : ''}
+            />
+            {customerErrors.nic && <p className="mt-1 text-xs text-burgundy">{customerErrors.nic}</p>}
           </Field>
           <Field label="Email">
-            <Input type="email" value={newCustomer.email} onChange={e => setNewCustomer({ ...newCustomer, email: e.target.value })} />
+            <Input
+              type="text"
+              value={newCustomer.email}
+              onChange={e => handleCustomerField('email', e.target.value)}
+              placeholder="name@example.com"
+              className={customerErrors.email ? 'border-burgundy ring-1 ring-burgundy' : ''}
+            />
+            {customerErrors.email && <p className="mt-1 text-xs text-burgundy">{customerErrors.email}</p>}
           </Field>
           <Field label="Contact No." required>
-            <Input required value={newCustomer.phone} onChange={e => setNewCustomer({ ...newCustomer, phone: e.target.value })} placeholder="07XXXXXXXX" />
+            <Input
+              required
+              type="tel"
+              maxLength={10}
+              value={newCustomer.phone}
+              onChange={e => handleCustomerField('phone', e.target.value.replace(/\D/g, ''))}
+              placeholder="07XXXXXXXX"
+              className={customerErrors.phone ? 'border-burgundy ring-1 ring-burgundy' : ''}
+            />
+            {customerErrors.phone
+              ? <p className="mt-1 text-xs text-burgundy">{customerErrors.phone}</p>
+              : <p className="mt-1 text-xs text-muted">10 digits, starting with 0</p>
+            }
           </Field>
           <Field label="Contact No. 2">
-            <Input value={newCustomer.phone2} onChange={e => setNewCustomer({ ...newCustomer, phone2: e.target.value })} />
+            <Input
+              type="tel"
+              maxLength={10}
+              value={newCustomer.phone2}
+              onChange={e => handleCustomerField('phone2', e.target.value.replace(/\D/g, ''))}
+              placeholder="07XXXXXXXX"
+              className={customerErrors.phone2 ? 'border-burgundy ring-1 ring-burgundy' : ''}
+            />
+            {customerErrors.phone2 && <p className="mt-1 text-xs text-burgundy">{customerErrors.phone2}</p>}
           </Field>
           <Field label="Address" className="sm:col-span-2">
-            <Textarea value={newCustomer.address} onChange={e => setNewCustomer({ ...newCustomer, address: e.target.value })} />
+            <Textarea
+              value={newCustomer.address}
+              maxLength={200}
+              onChange={e => handleCustomerField('address', e.target.value)}
+            />
+            <p className="mt-1 text-xs text-muted text-right">{newCustomer.address.length}/200</p>
+            {customerErrors.address && <p className="mt-1 text-xs text-burgundy">{customerErrors.address}</p>}
           </Field>
           <div className="flex justify-end gap-2 sm:col-span-2">
-            <Button type="button" variant="outline" onClick={() => setShowAddCustomer(false)}>Cancel</Button>
-            <Button type="submit" variant="brass" disabled={savingCustomer}>{savingCustomer ? 'Saving...' : 'Add Customer'}</Button>
+            <Button type="button" variant="outline" onClick={() => { setShowAddCustomer(false); setCustomerErrors({}) }}>Cancel</Button>
+            <Button type="submit" variant="brass" disabled={savingCustomer || hasCustomerErrors}>
+              {savingCustomer ? 'Saving...' : 'Add Customer'}
+            </Button>
           </div>
         </form>
       </Modal>

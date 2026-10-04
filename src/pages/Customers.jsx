@@ -43,6 +43,49 @@ export default function Customers() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm)
+  const [customerErrors, setCustomerErrors] = useState({})
+
+  function validateCustomerField(field, value = '') {
+    const val = value || ''
+    switch (field) {
+      case 'firstName':
+        if (!val.trim()) return 'First name is required'
+        if (val.length > 50) return 'Max 50 characters'
+        return ''
+      case 'lastName':
+        if (val && val.length > 50) return 'Max 50 characters'
+        return ''
+      case 'phone':
+      case 'phone2': {
+        if (field === 'phone' && !val.trim()) return 'Phone number is required'
+        if (!val) return ''
+        if (!/^\d+$/.test(val)) return 'Only digits allowed'
+        if (!val.startsWith('0')) return 'Must start with 0'
+        if (val.length !== 10) return 'Must be exactly 10 digits'
+        return ''
+      }
+      case 'nic':
+        if (!val) return ''
+        if (!/^(\d{9}[VvXx]|\d{12})$/.test(val)) return 'Invalid NIC (e.g. 991234567V or 199912345678)'
+        return ''
+      case 'email':
+        if (!val) return ''
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) return 'Invalid email address'
+        return ''
+      case 'address':
+        if (val && val.length > 200) return 'Max 200 characters'
+        return ''
+      default:
+        return ''
+    }
+  }
+
+  function handleCustomerField(field, value) {
+    setForm(prev => ({ ...prev, [field]: value }))
+    setCustomerErrors(prev => ({ ...prev, [field]: validateCustomerField(field, value) }))
+  }
+
+  const hasCustomerErrors = Object.values(customerErrors).some(Boolean)
 
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE) || 1
 
@@ -96,11 +139,37 @@ export default function Customers() {
     setPage(1)
   }, [debouncedSearch])
 
-  function openAdd() { setEditing(null); setForm(emptyForm); setModalOpen(true) }
-  function openEdit(c) { setEditing(c.id); setForm({ ...c }); setModalOpen(true) }
+  function openAdd() {
+    setEditing(null)
+    setForm(emptyForm)
+    setCustomerErrors({})
+    setModalOpen(true)
+  }
+
+  function openEdit(c) {
+    setEditing(c.id)
+    setForm({
+      firstName: c.firstName || '',
+      lastName: c.lastName || '',
+      nic: c.nic || '',
+      email: c.email || '',
+      phone: c.phone || '',
+      phone2: c.phone2 || '',
+      address: c.address || '',
+    })
+    setCustomerErrors({})
+    setModalOpen(true)
+  }
   
   async function submit(e) {
     e.preventDefault()
+    // Run full validation before submit
+    const fields = ['firstName', 'lastName', 'phone', 'phone2', 'nic', 'email', 'address']
+    const errors = {}
+    fields.forEach(f => { errors[f] = validateCustomerField(f, form[f]) })
+    setCustomerErrors(errors)
+    if (Object.values(errors).some(Boolean)) return
+
     try {
       if (editing) {
         const ok = await confirm({
@@ -115,6 +184,7 @@ export default function Customers() {
         await addCustomer(form)
       }
       setModalOpen(false)
+      setCustomerErrors({})
       // Refetch current page to see changes immediately
       fetchCustomers(page, search)
     } catch (err) {
@@ -218,32 +288,87 @@ export default function Customers() {
         </div>
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Customer' : 'Add Customer'}>
-        <form onSubmit={submit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <Modal open={modalOpen} onClose={() => { setModalOpen(false); setCustomerErrors({}) }} title={editing ? 'Edit Customer' : 'Add Customer'}>
+        <form onSubmit={submit} className="grid grid-cols-1 gap-4 sm:grid-cols-2" noValidate>
           <Field label="First Name" required>
-            <Input required value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} />
+            <Input
+              required
+              maxLength={50}
+              value={form.firstName}
+              onChange={e => handleCustomerField('firstName', e.target.value)}
+              className={customerErrors.firstName ? 'border-burgundy ring-1 ring-burgundy' : ''}
+            />
+            {customerErrors.firstName && <p className="mt-1 text-xs text-burgundy">{customerErrors.firstName}</p>}
           </Field>
           <Field label="Last Name">
-            <Input value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} />
+            <Input
+              maxLength={50}
+              value={form.lastName}
+              onChange={e => handleCustomerField('lastName', e.target.value)}
+              className={customerErrors.lastName ? 'border-burgundy ring-1 ring-burgundy' : ''}
+            />
+            {customerErrors.lastName && <p className="mt-1 text-xs text-burgundy">{customerErrors.lastName}</p>}
           </Field>
           <Field label="NIC No.">
-            <Input value={form.nic} onChange={e => setForm({ ...form, nic: e.target.value })} placeholder="e.g. 991234567V" />
+            <Input
+              value={form.nic}
+              maxLength={12}
+              onChange={e => handleCustomerField('nic', e.target.value)}
+              placeholder="e.g. 991234567V or 199912345678"
+              className={customerErrors.nic ? 'border-burgundy ring-1 ring-burgundy' : ''}
+            />
+            {customerErrors.nic && <p className="mt-1 text-xs text-burgundy">{customerErrors.nic}</p>}
           </Field>
           <Field label="Email">
-            <Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+            <Input
+              type="text"
+              value={form.email}
+              onChange={e => handleCustomerField('email', e.target.value)}
+              placeholder="name@example.com"
+              className={customerErrors.email ? 'border-burgundy ring-1 ring-burgundy' : ''}
+            />
+            {customerErrors.email && <p className="mt-1 text-xs text-burgundy">{customerErrors.email}</p>}
           </Field>
           <Field label="Contact No." required>
-            <Input required value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="07XXXXXXXX" />
+            <Input
+              required
+              type="tel"
+              maxLength={10}
+              value={form.phone}
+              onChange={e => handleCustomerField('phone', e.target.value.replace(/\D/g, ''))}
+              placeholder="07XXXXXXXX"
+              className={customerErrors.phone ? 'border-burgundy ring-1 ring-burgundy' : ''}
+            />
+            {customerErrors.phone
+              ? <p className="mt-1 text-xs text-burgundy">{customerErrors.phone}</p>
+              : <p className="mt-1 text-xs text-muted">10 digits, starting with 0</p>
+            }
           </Field>
           <Field label="Contact No. 2">
-            <Input value={form.phone2} onChange={e => setForm({ ...form, phone2: e.target.value })} />
+            <Input
+              type="tel"
+              maxLength={10}
+              value={form.phone2}
+              onChange={e => handleCustomerField('phone2', e.target.value.replace(/\D/g, ''))}
+              placeholder="07XXXXXXXX"
+              className={customerErrors.phone2 ? 'border-burgundy ring-1 ring-burgundy' : ''}
+            />
+            {customerErrors.phone2 && <p className="mt-1 text-xs text-burgundy">{customerErrors.phone2}</p>}
           </Field>
           <Field label="Address" className="sm:col-span-2">
-            <Textarea value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} />
+            <Textarea
+              value={form.address}
+              maxLength={200}
+              onChange={e => handleCustomerField('address', e.target.value)}
+            />
+            <p className="mt-1 text-xs text-muted text-right">{(form.address || '').length}/200</p>
+            {customerErrors.address && <p className="mt-1 text-xs text-burgundy">{customerErrors.address}</p>}
           </Field>
           <div className="flex justify-end gap-2 sm:col-span-2">
-            <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="brass">{editing ? 'Save Changes' : 'Add Customer'}</Button>
+            <Button type="button" variant="outline" onClick={() => { setModalOpen(false); setCustomerErrors({}) }}>Cancel</Button>
+            <Button type="submit" variant="brass" disabled={hasCustomerErrors}>
+              {editing ? 'Save Changes' : 'Add Customer'}
+            </Button>
           </div>
         </form>
       </Modal>

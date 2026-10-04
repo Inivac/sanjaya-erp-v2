@@ -21,7 +21,7 @@ class BufferAdapter {
 
 export function generateEscposBuffer(data) {
   const { order, customer, orderItems, businessProfile } = data;
-  
+  // console.log(orderItems)
   const device = new BufferAdapter();
   const printer = new escpos.Printer(device, { encoding: 'GB18030' }); // Supports normal chars
 
@@ -32,9 +32,9 @@ export function generateEscposBuffer(data) {
   const orderDate = order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-GB') : new Date(order.startDate).toLocaleDateString('en-GB');
   const dueDate = new Date(order.endDate).toLocaleDateString('en-GB');
   const isDryClean = Boolean(order.dryclean_status || order.drycleanStatus);
-  
+
   const rentalDays = Math.max(
-    Math.round((new Date(order.endDate).setHours(0,0,0,0) - new Date(order.startDate).setHours(0,0,0,0)) / (1000 * 60 * 60 * 24)),
+    Math.round((new Date(order.endDate).setHours(0, 0, 0, 0) - new Date(order.startDate).setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24)),
     1
   );
 
@@ -53,7 +53,7 @@ export function generateEscposBuffer(data) {
     const leftStr = (left || '').toString();
     const rightStr = (right || '').toString();
     const spaceCount = width - leftStr.length - rightStr.length;
-    
+
     if (spaceCount > 0) {
       printer.text(leftStr + ' '.repeat(spaceCount) + rightStr);
     } else {
@@ -69,15 +69,15 @@ export function generateEscposBuffer(data) {
   printer.text(bName);
   printer.size(0, 0); // Revert to normal size
   printer.style('normal');
-  
+
   if (businessProfile?.tagline) printer.text(businessProfile.tagline);
   if (businessProfile?.address) printer.text(businessProfile.address.replace(/\n/g, ' '));
   if (businessProfile?.phone) printer.text(`Tel: ${businessProfile.phone}`);
   if (businessProfile?.email) printer.text(businessProfile.email);
   if (businessProfile?.regNo) printer.text(`Reg: ${businessProfile.regNo}`);
-  
+
   printer.text('-'.repeat(lineLength));
-  
+
   printer.align('lt');
   printRow('Receipt No:', invoiceDisplay);
   printRow('Order Date:', orderDate);
@@ -86,23 +86,23 @@ export function generateEscposBuffer(data) {
   printRow('Printed At:', `${printedDate} ${printedTime}`);
 
   printer.text('-'.repeat(lineLength));
-  
+
   printer.align('ct');
   printer.text('CUSTOMER DETAILS');
   printer.align('lt');
-  
+
   const custName = customer ? [customer.firstName, customer.lastName].filter(Boolean).join(' ') : 'Walk-in Customer';
   printRow('Name:', custName);
-  
+
   if (customer?.nic) {
     printRow('NIC No:', customer.nic);
   }
-  
+
   if (customer?.phone || customer?.phone2) {
     const phones = [customer?.phone, customer?.phone2].filter(Boolean).join(' / ');
     printRow('Phone:', phones);
   }
-  
+
   if (customer?.address) {
     printer.text(`Address: ${customer.address}`);
   }
@@ -114,17 +114,15 @@ export function generateEscposBuffer(data) {
   if (orderItems && orderItems.length > 0) {
     orderItems.forEach((d, idx) => {
       const garments = [
-        d.coat && { label: 'Coat', value: d.coat },
-        d.trouser && { label: 'Trouser', value: d.trouser },
-        d.west && { label: 'Vest', value: d.west },
-        d.national && { label: 'National', value: d.national },
+        d.coat_label && { label: 'Coat', value: d.coat_label },
+        d.trouser_label && { label: 'Trouser', value: d.trouser_label },
+        d.west_label && { label: 'Vest', value: d.west_label },
+        d.national_label && { label: 'National', value: d.national_label },
       ].filter(Boolean);
 
       if (garments.length > 0) {
         garments.forEach((g, gi) => {
-          // The database stores "ID — Description". Split and take only the ID.
-          const codeOnly = g.value.split(/ — | - /)[0].trim();
-          printRow(`${g.label}: ${codeOnly}`, gi === 0 ? formatLKR(d.rentOrSalePrice) : '');
+          printRow(`${g.label}: ${g.value}`, gi === 0 ? formatLKR(d.rentOrSalePrice) : '');
         });
       } else {
         const itemName = d.name || d.itemName || `Item #${idx + 1}`;
@@ -136,7 +134,7 @@ export function generateEscposBuffer(data) {
   }
 
   printer.text('-'.repeat(lineLength));
-  
+
   printRow('Sub Total:', formatLKR(order.subTotal));
   printRow('Dry Cleaning:', isDryClean ? 'Yes' : 'No');
   printRow('Advance Paid:', formatLKR(order.paymentReceived));
@@ -162,7 +160,7 @@ export function generateEscposBuffer(data) {
   printer.text('returning rented items.');
   printer.feed(2);
   printer.text('Software Powered by Inivac | 0742266018');
-  
+
   printer.feed(4);
   printer.cut();
   printer.close();

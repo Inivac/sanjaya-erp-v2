@@ -436,7 +436,7 @@ export default function Orders() {
                     <div key={d.id} className="px-3 py-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-ink">
-                          {[d.coat && `Coat: ${d.coat}`, d.trouser && `Trouser: ${d.trouser}`, d.west && `Vest: ${d.west}`, d.national && `National: ${d.national}`].filter(Boolean).join(' · ')}
+                          {[d.coat_label && `Coat: ${d.coat_label}`, d.trouser_label && `Trouser: ${d.trouser_label}`, d.west_label && `Vest: ${d.west_label}`, d.national_label && `National: ${d.national_label}`].filter(Boolean).join(' · ')}
                         </span>
                         <span className="text-muted">{formatLKR(d.rentOrSalePrice)}</span>
                       </div>

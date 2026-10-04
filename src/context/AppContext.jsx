@@ -275,7 +275,7 @@ export function AppProvider({ children }) {
         itemsData.forEach(i => {
           const code = (i.coat_no || '').trim()
           const name = (i.name || '').trim()
-          coatMap[i.id] = code && name ? `${code} — ${name}` : (code || name || String(i.id))
+          coatMap[i.id] = code || name || String(i.id)
         })
       }
     }
