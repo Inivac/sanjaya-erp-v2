@@ -21,7 +21,7 @@ export default function Settings() {
 
   const isElectron = typeof window !== 'undefined' && typeof window.require === 'function'
   const [printers, setPrinters] = useState([])
-  const [selectedPrinter, setSelectedPrinter] = useState(() => localStorage.getItem('erp_pos_printer') || '')
+  const [selectedPrinter, setSelectedPrinter] = useState(() => localStorage.getItem('erp_pos_printer') || businessProfile?.posPrinter || '')
   const [silentPrint, setSilentPrint] = useState(() => localStorage.getItem('erp_silent_print') !== 'false')
   const [printerStatus, setPrinterStatus] = useState(null)
   const [testingPrint, setTestingPrint] = useState(false)
@@ -38,6 +38,10 @@ export default function Settings() {
   useEffect(() => {
     if (businessProfile) {
       setForm(businessProfile)
+      if (businessProfile.posPrinter) {
+        setSelectedPrinter(businessProfile.posPrinter)
+        localStorage.setItem('erp_pos_printer', businessProfile.posPrinter)
+      }
     }
   }, [businessProfile])
 
@@ -60,9 +64,12 @@ export default function Settings() {
         ipcRenderer.invoke('get-printers').then(list => {
           if (Array.isArray(list)) {
             setPrinters(list)
-            if (!localStorage.getItem('erp_pos_printer')) {
+            const currentSaved = localStorage.getItem('erp_pos_printer') || businessProfile?.posPrinter
+            if (!currentSaved) {
               const def = list.find(p => p.isDefault) || list[0]
               if (def) setSelectedPrinter(def.name)
+            } else {
+              setSelectedPrinter(currentSaved)
             }
           }
         }).catch(err => console.warn(err))
@@ -80,11 +87,29 @@ export default function Settings() {
     setTestingPrint(true)
     setPrinterStatus(null)
     try {
+      const targetPrinter = (selectedPrinter && selectedPrinter !== '__dialog__')
+        ? selectedPrinter
+        : (printers[0]?.name || businessProfile?.posPrinter || 'Xprinter XP-80')
+
+      // Save selected printer to business_profile table in Supabase
+      try {
+        const { error: dbErr } = await supabase
+          .from('business_profile')
+          .update({ pos_printer: targetPrinter })
+          .eq('id', 1)
+
+        if (dbErr) {
+          console.error('Failed to update pos_printer in business_profile:', dbErr)
+        } else {
+          localStorage.setItem('erp_pos_printer', targetPrinter)
+          setBusinessProfile(prev => ({ ...prev, posPrinter: targetPrinter }))
+        }
+      } catch (dbErr) {
+        console.error('Error saving pos_printer to database:', dbErr)
+      }
+
       if (isElectron) {
         const { ipcRenderer } = window.require('electron')
-        const targetPrinter = (selectedPrinter && selectedPrinter !== '__dialog__')
-          ? selectedPrinter
-          : (printers[0]?.name || 'Xprinter XP-80')
 
         const testSlip = [
           '==========================================',
@@ -110,8 +135,9 @@ export default function Settings() {
         if (result && !result.success) {
           throw new Error(result.failureReason || 'Failed to print test slip')
         }
-        setPrinterStatus({ type: 'success', message: `Test receipt printed cleanly to ${targetPrinter}!` })
+        setPrinterStatus({ type: 'success', message: `Saved printer to database & test receipt printed to ${targetPrinter}!` })
       } else {
+        setPrinterStatus({ type: 'success', message: `Saved "${targetPrinter}" to database.` })
         window.print()
       }
     } catch (err) {
@@ -193,7 +219,7 @@ export default function Settings() {
 
   function save(e) {
     e.preventDefault()
-    setBusinessProfile(form)
+    setBusinessProfile({ ...form, posPrinter: selectedPrinter || form.posPrinter })
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -345,6 +371,9 @@ export default function Settings() {
                     }}
                   >
                     <option value="">Default Windows Printer</option>
+                    {selectedPrinter && selectedPrinter !== '__dialog__' && !printers.some(p => p.name === selectedPrinter) && (
+                      <option value={selectedPrinter}>{selectedPrinter}</option>
+                    )}
                     {printers.map(p => (
                       <option key={p.name} value={p.name}>
                         {p.name} {p.isDefault ? '(System Default)' : ''}

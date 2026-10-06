@@ -401,34 +401,35 @@ export default function AddOrder() {
   })
   const [customerErrors, setCustomerErrors] = useState({})
 
-  function validateCustomerField(field, value) {
+  function validateCustomerField(field, value = '') {
+    const val = value || ''
     switch (field) {
       case 'firstName':
-        if (!value.trim()) return 'First name is required'
-        if (value.length > 50) return 'Max 50 characters'
+        if (!val.trim()) return 'First name is required'
+        if (val.length > 50) return 'Max 50 characters'
         return ''
       case 'lastName':
-        if (value && value.length > 50) return 'Max 50 characters'
+        if (val && val.length > 50) return 'Max 50 characters'
         return ''
       case 'phone':
       case 'phone2': {
-        if (field === 'phone' && !value.trim()) return 'Phone number is required'
-        if (!value) return ''
-        if (!/^\d+$/.test(value)) return 'Only digits allowed'
-        if (!value.startsWith('0')) return 'Must start with 0'
-        if (value.length !== 10) return 'Must be exactly 10 digits'
+        if (field === 'phone' && !val.trim()) return 'Phone number is required'
+        if (!val) return ''
+        if (!/^\d+$/.test(val)) return 'Only digits allowed'
+        if (!val.startsWith('0')) return 'Must start with 0'
+        if (val.length !== 10) return 'Must be exactly 10 digits'
         return ''
       }
       case 'nic':
-        if (!value) return ''
-        if (!/^(\d{9}[VvXx]|\d{12})$/.test(value)) return 'Invalid NIC (e.g. 991234567V or 199912345678)'
+        if (!val) return ''
+        if (!/^(\d{9}[VvXx]|\d{12})$/.test(val)) return 'Invalid NIC (e.g. 991234567V or 199912345678)'
         return ''
       case 'email':
-        if (!value) return ''
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Invalid email address'
+        if (!val) return ''
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) return 'Invalid email address'
         return ''
       case 'address':
-        if (value && value.length > 200) return 'Max 200 characters'
+        if (val && val.length > 200) return 'Max 200 characters'
         return ''
       default:
         return ''
@@ -542,7 +543,7 @@ export default function AddOrder() {
               orderItems: finalOrder.orderDetails || [],
               businessProfile
             },
-            printerName: localStorage.getItem('erp_pos_printer') || 'Xprinter XP-80'
+            printerName: localStorage.getItem('erp_pos_printer') || businessProfile?.posPrinter || 'Xprinter XP-80'
           })
         } catch (err) {
           console.error('Auto-print error:', err)
@@ -569,8 +570,8 @@ export default function AddOrder() {
 
 
 
-      <form onSubmit={submit} className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="space-y-5 lg:col-span-2">
+      <form onSubmit={submit} className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_275px] xl:grid-cols-[1fr_285px]">
+        <div className="space-y-5 min-w-0">
           {/* Customer & Dates */}
           <Card className="p-5">
             <h3 className="mb-4 font-display text-base font-semibold text-ink">Customer &amp; Rental Period</h3>
@@ -718,14 +719,14 @@ export default function AddOrder() {
           </Card>
         </div>
 
-        {/* Right Panel */}
-        <div className="space-y-5">
-          <Card className="p-5">
-            <h3 className="mb-4 font-display text-base font-semibold text-ink">Payment</h3>
-            <div className="space-y-4">
+        {/* Right Panel (Payment & Order Details) */}
+        <div className="space-y-5 min-w-0">
+          <Card className="p-4 sm:p-5">
+            <h3 className="mb-3.5 font-display text-base font-semibold text-ink">Payment</h3>
+            <div className="space-y-3.5">
               <div className="flex items-center justify-between rounded-lg border border-line px-3 py-2 text-sm">
-                <span className="text-muted">Total Price ({orderLines.length} line{orderLines.length === 1 ? '' : 's'})</span>
-                <span className="font-medium text-ink">{formatLKR(totalPrice)}</span>
+                <span className="text-muted text-xs sm:text-sm">Total Price ({orderLines.length} line{orderLines.length === 1 ? '' : 's'})</span>
+                <span className="font-semibold text-ink">{formatLKR(totalPrice)}</span>
               </div>
               <Field label="Payment Received (LKR)">
                 <Input
@@ -746,13 +747,13 @@ export default function AddOrder() {
                 />
                 {totalPrice > 0 && Number(paymentReceived) > totalPrice && (
                   <p className="mt-1 text-xs text-burgundy font-medium">
-                    ⚠ Payment received cannot exceed the total price ({formatLKR(totalPrice)})
+                    ⚠ Payment received cannot exceed total price ({formatLKR(totalPrice)})
                   </p>
                 )}
               </Field>
               <div className="flex items-center justify-between rounded-lg border border-line px-3 py-2 text-sm">
-                <span className="text-muted">Remaining Payment</span>
-                <span className={remaining > 0 ? 'font-medium text-burgundy' : 'font-medium text-sage'}>{formatLKR(remaining)}</span>
+                <span className="text-muted text-xs sm:text-sm">Remaining Payment</span>
+                <span className={remaining > 0 ? 'font-semibold text-burgundy' : 'font-semibold text-sage'}>{formatLKR(remaining)}</span>
               </div>
               <Field label="Payment Method">
                 <Select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
@@ -762,25 +763,25 @@ export default function AddOrder() {
             </div>
           </Card>
 
-          <Card className="p-5">
-            <h3 className="mb-4 font-display text-base font-semibold text-ink">Order Details</h3>
-            <div className="space-y-4">
+          <Card className="p-4 sm:p-5">
+            <h3 className="mb-3.5 font-display text-base font-semibold text-ink">Order Details</h3>
+            <div className="space-y-3.5">
               <Field label="Order Status">
                 <Select value={statusId} onChange={e => setStatusId(e.target.value)}>
                   {orderStatuses.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </Select>
               </Field>
-              <label className="flex items-center gap-2 text-sm text-ink">
-                <input type="checkbox" checked={isDryclean} onChange={e => setIsDryclean(e.target.checked)} className="h-4 w-4 rounded border-line accent-brass" />
-                Requires dry cleaning before handover
+              <label className="flex items-start gap-2 text-xs sm:text-sm text-ink cursor-pointer">
+                <input type="checkbox" checked={isDryclean} onChange={e => setIsDryclean(e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-line accent-brass shrink-0" />
+                <span className="leading-snug">Requires dry cleaning before handover</span>
               </label>
               <Field label="Remark">
-                <Textarea value={remark} onChange={e => setRemark(e.target.value)} placeholder="Optional notes about this order…" />
+                <Textarea value={remark} onChange={e => setRemark(e.target.value)} placeholder="Optional notes about this order…" rows={3} />
               </Field>
             </div>
           </Card>
 
-          <Button type="submit" variant="brass" className="w-full" size="lg" disabled={submitting} icon={submitting ? null : Plus}>
+          <Button type="submit" variant="brass" className="w-full justify-center" size="lg" disabled={submitting} icon={submitting ? null : Plus}>
             {submitting ? (
               <span className="flex items-center justify-center gap-2">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />

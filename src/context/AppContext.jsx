@@ -101,7 +101,8 @@ const mapProfileFromDb = (p) => p ? ({
   phone: p.phone,
   email: p.email,
   address: p.address,
-  lateFeePerDay: Number(p.late_fee_per_day)
+  lateFeePerDay: Number(p.late_fee_per_day),
+  posPrinter: p.pos_printer || null
 }) : null
 
 export function AppProvider({ children }) {
@@ -139,7 +140,13 @@ export function AppProvider({ children }) {
         if (dbCategories) setItemCategories(dbCategories.map(mapCategoryFromDb))
         if (dbOrderStatuses) setOrderStatuses(dbOrderStatuses.map(mapOrderStatusFromDb))
         if (dbUsers) setUsers(dbUsers.map(mapUserFromDb))
-        if (dbProfile) setBusinessProfile(mapProfileFromDb(dbProfile))
+        if (dbProfile) {
+          const profile = mapProfileFromDb(dbProfile)
+          setBusinessProfile(profile)
+          if (profile?.posPrinter) {
+            localStorage.setItem('erp_pos_printer', profile.posPrinter)
+          }
+        }
       } catch (err) {
         console.error('Error fetching initial data from Supabase:', err.message)
       } finally {
@@ -553,21 +560,30 @@ export function AppProvider({ children }) {
 
   // ── Business Profile ───────────────────────────────────────────────────────
 
-  const updateBusinessProfile = useCallback(async (form) => {
+  const updateBusinessProfile = useCallback(async (formOrUpdater) => {
+    let next
+    setBusinessProfile(prev => {
+      next = typeof formOrUpdater === 'function' ? formOrUpdater(prev) : formOrUpdater
+      return next
+    })
     const mapped = {
-      name: form.name,
-      tagline: form.tagline || null,
-      reg_no: form.regNo || null,
-      tax_id: form.taxId || null,
-      currency: form.currency,
-      phone: form.phone || null,
-      email: form.email || null,
-      address: form.address || null,
-      late_fee_per_day: form.lateFeePerDay
+      name: next.name,
+      tagline: next.tagline || null,
+      reg_no: next.regNo || null,
+      tax_id: next.taxId || null,
+      currency: next.currency,
+      phone: next.phone || null,
+      email: next.email || null,
+      address: next.address || null,
+      late_fee_per_day: next.lateFeePerDay,
+      pos_printer: next.posPrinter ?? next.pos_printer ?? null
     }
     const { error } = await supabase.from('business_profile').update(mapped).eq('id', 1)
     if (error) throw error
-    setBusinessProfile(form)
+    if (mapped.pos_printer) {
+      localStorage.setItem('erp_pos_printer', mapped.pos_printer)
+    }
+    return next
   }, [])
 
   // ── Helpers ────────────────────────────────────────────────────────────────

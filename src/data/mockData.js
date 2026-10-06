@@ -60,4 +60,5 @@ export const businessProfileSeed = {
   email: 'info@sanjayatailors.lk',
   address: '142 Galle Road, Colombo 04, Sri Lanka',
   lateFeePerDay: 500,
+  posPrinter: 'Xprinter XP-80'
 }

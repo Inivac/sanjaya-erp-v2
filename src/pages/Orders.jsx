@@ -368,7 +368,7 @@ export default function Orders() {
                                           orderItems: details.orderDetails || [],
                                           businessProfile
                                         },
-                                        printerName: localStorage.getItem('erp_pos_printer') || 'Xprinter XP-80'
+                                        printerName: localStorage.getItem('erp_pos_printer') || businessProfile?.posPrinter || 'Xprinter XP-80'
                                       })
                                     } else {
                                       setInvoicing(details)
@@ -483,7 +483,7 @@ export default function Orders() {
                           orderItems: viewing.orderDetails || [],
                           businessProfile
                         },
-                        printerName: localStorage.getItem('erp_pos_printer') || 'Xprinter XP-80'
+                        printerName: localStorage.getItem('erp_pos_printer') || businessProfile?.posPrinter || 'Xprinter XP-80'
                       })
                     } else {
                       setInvoicing(viewing)

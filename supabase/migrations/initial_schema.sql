@@ -84,7 +84,8 @@ CREATE TABLE public.business_profile (
   phone text,
   email text,
   address text,
-  late_fee_per_day integer NOT NULL DEFAULT 500
+  late_fee_per_day integer NOT NULL DEFAULT 500,
+  pos_printer varchar
 );
 
 -- Ensure RLS is disabled for simpler dashboard operations (or set open rules)
